@@ -281,9 +281,103 @@ router.get('/room/:id', async (req, res, next) => {
 
 > `io.of('/chat').adapter.rooms` 에는 방 목록이 들어있다.
 
+<br>
 
+#### Chatting 구현
 
+```js
+/*** routes/index.js ***/
 
+router.get('/room/:id', async (req, res, next) => {
+  try {
+    //...
+
+    const chats = await Chat.find({ room: room._id }).sort('createdAt')
+
+    return res.render('chat', {
+      room, 
+      title: room.title,
+      chats,
+      user: req.session.color
+    })
+  } catch (error) {
+    //...
+  }
+})
+```
+
+> 방 접속시 기존 채팅 내역을 불러오도록 구현. 접속시에는 DB에서, 접속 이후에는 웹소켓으로 메세지를 받는다.
+
+<br>
+
+```js
+/*** routes/index.js ***/
+
+router.post('/room/:id/chat', async (req, res, next) => {
+  try {
+    const chat = new Chat({
+      room: req.params.id,
+      user: req.session.color,
+      chat: req.body.chat
+    })
+    await chat.save()
+    req.app.get('io').of('/chat').to(req.params.id).emit('chat', chat)
+    res.send('ok')
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+})
+```
+
+> 채팅을 DB 에 저장 후 같은 방에 있는 소켓들에게 메세지를 전송.
+
+<br>
+
+#### GIF 전송
+
+```js
+/*** routes/index.js ***/
+fs.readdir('uploads', (error) => {
+  if(error) {
+    console.error('uploads 폴더가 없어 uploads 폴더를 생성.')
+    fs.mkdirSync('uploads')
+  }
+})
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination(req, file, cb) {
+      cb(null, 'uploads/')
+    },
+    filename(req, file, cb) {
+      const ext = path.extname(file.originalname)
+      cb(null, path.basename(file.originalname, ext) + new Date().valueOf() + ext)
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024}
+})
+
+router.post('/room/:id/gif', upload.single('gif'), async (req, res, next) => {
+  try {
+    const chat = new Chat({
+      room: req.params.id,
+      user: req.session.color,
+      gif: req.file.filename
+    })
+    await chat.save()
+    req.app.get('io').of('/chat').to(req.params.id).emit('chat', chat)
+    res.send('ok')
+  } catch (error) {
+    console.error(error)
+    next(error)
+  }
+})
+```
+
+> 파일이 업로드된 후에 내용을 저장하고, 방의 모든 소켓에게 채팅 데이터를 보낸다.
+
+<br>
 
 #### Reference
 
