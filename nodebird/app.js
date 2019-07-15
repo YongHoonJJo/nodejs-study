@@ -4,13 +4,18 @@ const morgan = require('morgan')
 const path = require('path')
 const session = require('express-session')
 const flash = require('connect-flash')
+const passport = require('passport')
 require('dotenv').config()
 
 const pageRouter = require('./routes/page')
+const authRouter = require('./routes/auth')
 const { sequelize } = require('./models')
+const passportConfig = require('./passport')
+
 
 const app = express()
 sequelize.sync()
+passportConfig(passport)
 
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'pug')
@@ -31,8 +36,11 @@ app.use(session({
   }
 }))
 app.use(flash())
+app.use(passport.initialize())
+app.use(passport.session())
 
 app.use('/', pageRouter)
+app.use('/auth', authRouter)
 
 app.use((req, res, next) => {
   const err = new Error('Not Found')

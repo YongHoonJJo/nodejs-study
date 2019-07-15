@@ -57,7 +57,7 @@ COOKIE_SECRET=nodebirdsecret
 
 <br>
 
-#### DB 세팅
+#### <2> DB 세팅
 
 아래의 세 파일 생성
 
@@ -143,6 +143,59 @@ app.js 에서 models/index.js 의 db.sequelize 객체를 import 후 sync() 호�
 > 시퀄라이즈는 테이블 생성 쿼리문에 IF NOT EXISTS 를 넣기 때문에, 테이블이 없을 때만 생성해준다.
 
 <br>
+
+#### <3> Passport 모듈
+
+```
+> npm i passport passport-local passport-kakao bcrypt
+```
+
+
+
+```js
+/*** app.js ***/
+const passport = require('passport')
+const passportConfig = require('./passport')
+passportConfig(passport)
+app.use(passport.initialize())
+app.use(passport.session())
+```
+
+> 위의 코드를 추가하여 Passport 모듈을 app.js 와 연결.<br>passport.initialize() 은 req 객체에 passport 설정을 담는다.<br>passport.session() 은 req.session 객체에 passport 정보를 저장한며, req.session 객체는 express-session 에서 생성되기 때문에, passport 미들웨어는 express-session 미들웨어보다 뒤에 연결해야 한다.
+
+<br>
+
+```js
+/*** passport/index.js ***/
+const local = require('./localStrategy')
+const kakao = require('./kakaoStrategy')
+const { User } = require('../models')
+
+module.exports = (passport) => {
+  passport.serializeUser((user, done) => {
+    done(null, user.id)
+  })
+
+  passport.deserializeUser((id, done) => {
+    User.fine({ where: { id } })
+      .then(user => done(null, user))
+      .catch(err => done(err))
+  })
+
+  local(passport)
+  kakao(passport)
+}
+```
+
+> serializeUser() 메서드는 req.session객체에 어떤 데이터를 저장할지 선택한다. 세션에 사용자 정보를 모두 저장하면 세션의 용량이 커지고, 데이터 일관성에 문제가 발생하기 때문에, 사용자의 아이디만 저장할고 명령한 것.
+>
+> deserializeUser() 메서드는 매번 요청할 때마다 실행된다. passport.session() 미들웨어가 이 메서드를 호출한다. 위의 메서드에서 세션에 저장했던 아이디를 받아 DB 에서 사용자 정보를 조회한다. 그리고 그 정보는 req.user 에 저장되기 때문에 앞으로 req.user 를 통해 로그인한 사용자의 정보를 가져올 수 있다.
+>
+> 로그인 요청 - passport.authenticat() 호출 - 로그인 전략 수행 - 로그인 성공 시 사용자 정보 객체와 함께 req.login 호출 - req.login() 메서드가 passport.serializeUser() 호출 - req.session에 사용자 아이디만 저장 - 로그인 완료
+>
+> 로그인 이후 : 모든 요청에 passport.session() 미들웨어가 passport.deserializeUser() 메서드 호출 - req.session에 저장된 아이디로 DB에서 사용자 조회 - 조회된 사용자 정보를 req.user 에 저장 - 라우터에서 req.user 객체 사용 가능
+>
+> 또한, Passport 는 req 객체에 isAuthenticated() 를 추가하는데 로그인 중이면 true 를 리턴한다.
 
 
 
