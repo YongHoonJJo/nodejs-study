@@ -197,6 +197,16 @@ module.exports = (passport) => {
 >
 > 또한, Passport 는 req 객체에 isAuthenticated() 를 추가하는데 로그인 중이면 true 를 리턴한다.
 
+<br>
+
+#### <4> Multer 모듈로 이미지 업로드 구현
+
+```
+> npm i multer
+```
+
+
+
 
 
 #### Reference
